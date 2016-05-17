@@ -18,6 +18,21 @@ include:
     - user: root
     - unless: test -e /tmp/phpredis-2.2.4.tar.gz
 
+/tmp/libmemcached-1.0.18.tar.gz:
+  file.managed:
+    - source: salt://php/files/libmemcached-1.0.18.tar.gz
+    - mode: 755
+    - user: root
+    - unless: test -e /tmp/libmemcached-1.0.18.tar.gz
+
+/tmp/php-memcached.tar.gz:
+  file.managed:
+    - source: salt://php/files/php-memcached.tar.gz
+    - mode: 755
+    - user: root
+    - unless: test -e /tmp/php-memcached.tar.gz
+
+
 /tmp/memcache-3.0.5.tgz:
   file.managed:
     - source: salt://php/files/memcache-3.0.5.tgz
@@ -39,11 +54,25 @@ install_dep_pkg:
     
 install_php_source:
   cmd.run:
-    - name: cd /tmp && rm -rf php-5.6.16 && tar -zxf php-5.6.16.tar.gz && cd php-5.6.16 && mkdir -p {{php_install_dir }} && ./configure --prefix={{php_install_dir}}/php {{configure_args}} &>/dev/null && make &>/dev/null && make install &>/dev/null
+    - name: cp -frp /usr/lib64/libldap* /usr/lib/ && cd /tmp && rm -rf php-5.6.16 && tar -zxf php-5.6.16.tar.gz && cd php-5.6.16 && mkdir -p {{php_install_dir }} && ./configure --prefix={{php_install_dir}}/php {{configure_args}} &>/dev/null && make &>/dev/null && make install &>/dev/null
     - required:
       - cmd: install_dep_pkg
       - file: /tmp/php-5.6.16.tar.gz
     - unless: test -e {{php_install_dir}}/php/bin/php
+
+install_libmemcached:
+  cmd.run:
+    - name: cd /tmp && rm -rf libmemcached-1.0.18 && tar -zvf libmemcached-1.0.18.tar.gz && cd libmemcached-1.0.18 && ./configure --prefix=/usr/local/libmemcached --with-memcached &>/dev/null && make &>/dev/null && make install
+    - required:
+      - file: /tmp/libmemcached-1.0.18.tar.gz
+      - cmd: install_pkg_memcached
+    - unless: test -d /usr/local/libmemcached
+
+install_pkg_memcached:
+  cmd.run:
+    - name: yum install memcached php-devel -y
+
+
 
 install_php_memcache:
   cmd.run:
@@ -52,6 +81,14 @@ install_php_memcache:
       - file: /tmp/memcache-3.0.5.tgz
       - cmd: install_php_source
     - unless: find {{php_install_dir}}/php -name 'memcache.so'|grep 'memcache.so' &>/dev/null
+
+install_php_memcached:
+  cmd.run:
+    - name: cd /tmp && rm -rf php-memcached && tar -zxf php-memcached.tar.gz && cd php-memcached && {{php_install_dir}}/php/bin/phpize &>/dev/null && ./configure --with-php-config={{php_install_dir}}/php/bin/php-config --with-libmemcached-dir=/usr/local/libmemcached &>/dev/null && make &>/dev/null && make install &>/dev/null
+    - required:
+      - file: /tmp/php-memcached.tar.gz 
+      - cmd: install_php_source
+    - unless: find {{php_install_dir}}/php -name 'memcached.so'|grep 'memcached.so' &>/dev/null
 
 install_php_redis:
   cmd.run:
